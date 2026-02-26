@@ -5,50 +5,123 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Optional PostgreSQL support
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+
 # Load environment variables from .env files
 dotenv_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path)
 load_dotenv()
 
 
+
 class ParseHubDatabase:
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            # Try to get from environment variable
-            db_path = os.getenv('DATABASE_PATH', None)
+        # Database connection info
+        self.db_url = os.getenv('DATABASE_URL')
+        self.use_postgres = bool(self.db_url and POSTGRES_AVAILABLE)
+        
+        if self.use_postgres:
+            print(f"Using PostgreSQL database: {self.db_url.split('@')[-1]}")
+        else:
+            if db_path is None:
+                db_path = os.getenv('DATABASE_PATH', None)
+                if not db_path:
+                    db_path = str(Path(__file__).parent / "parsehub.db")
+                if not os.path.isabs(db_path):
+                    project_root = Path(__file__).parent.parent
+                    db_path = str(project_root / db_path)
+            self.db_path = db_path
+            print(f"Using SQLite database: {self.db_path}")
 
-            # If not in env, use default location
-            if not db_path:
-                db_path = str(Path(__file__).parent / "parsehub.db")
-
-            # Make sure it's an absolute path
-            if not os.path.isabs(db_path):
-                # Resolve relative paths from project root (parent of backend directory)
-                project_root = Path(__file__).parent.parent
-                db_path = str(project_root / db_path)
-
-        self.db_path = db_path
         self.conn = None
         self.init_db()
 
     def _get_connection(self):
-        """Get a new database connection with proper settings for concurrent access"""
-        conn = sqlite3.connect(
-            self.db_path,
-            check_same_thread=False,  # Allow use across threads
-            timeout=30,  # 30 second timeout for lock contention
-            isolation_level=None  # Autocommit mode for better concurrency
-        )
-        conn.row_factory = sqlite3.Row
-        # Enable WAL mode for better concurrent read access
-        try:
-            conn.execute('PRAGMA journal_mode=WAL')
-            conn.execute('PRAGMA busy_timeout=30000')  # 30 second busy timeout
-            # Balance speed and safety
-            conn.execute('PRAGMA synchronous=NORMAL')
-        except:
-            pass  # Fail gracefully if pragma not supported
-        return conn
+        """Get a new database connection based on type"""
+        if self.use_postgres:
+            conn = psycopg2.connect(self.db_url)
+            # Make PG behave similar to SQLite's isolation_level=None (autocommit)
+            conn.autocommit = True
+            return conn
+        else:
+            conn = sqlite3.connect(
+                self.db_path,
+                check_same_thread=False,
+                timeout=30,
+                isolation_level=None
+            )
+            conn.row_factory = sqlite3.Row
+            try:
+                conn.execute('PRAGMA journal_mode=WAL')
+                conn.execute('PRAGMA busy_timeout=30000')
+                conn.execute('PRAGMA synchronous=NORMAL')
+            except:
+                pass
+            return conn
+
+    class PgCursorShim:
+        """Shim to make PostgreSQL cursor behave like SQLite cursor"""
+        def __init__(self, cursor):
+            self.cursor = cursor
+        
+        def execute(self, sql, params=None):
+            # Translate SQL from SQLite to PostgreSQL syntax
+            sql = sql.replace('?', '%s')
+            sql = sql.replace('AUTOINCREMENT', 'SERIAL')
+            sql = sql.replace('INSERT OR REPLACE', 'INSERT') # Simple shim, technically incomplete for REPLACE
+            
+            # Convert SQLite specific REPLACE to PostgreSQL ON CONFLICT
+            # Note: This is an optimistic shim for basic cases
+            if 'INSERT INTO projects' in sql and 'updated_at' in sql:
+                 sql += ' ON CONFLICT (token) DO UPDATE SET title=EXCLUDED.title, owner_email=EXCLUDED.owner_email, main_site=EXCLUDED.main_site, updated_at=CURRENT_TIMESTAMP'
+            elif 'INSERT INTO analytics_cache' in sql:
+                 sql += ' ON CONFLICT (project_token) DO UPDATE SET updated_at=CURRENT_TIMESTAMP, analytics_json=EXCLUDED.analytics_json'
+            
+            # Clean up SQLite types
+            sql = sql.replace('DATETIME', 'TIMESTAMP')
+            
+            if params:
+                return self.cursor.execute(sql, params)
+            return self.cursor.execute(sql)
+
+        def fetchone(self):
+            row = self.cursor.fetchone()
+            return dict(row) if row else None
+
+        def fetchall(self):
+            return [dict(row) for row in self.cursor.fetchall()]
+
+        @property
+        def lastrowid(self):
+            # Complex to implement globally in PG without RETURNING id
+            # This is a risk point if the app relies heavily on it
+            self.cursor.execute("SELECT lastval()")
+            return self.cursor.fetchone()[0]
+
+        def __iter__(self):
+            for row in self.cursor:
+                yield dict(row)
+
+        def __getattr__(self, name):
+            return getattr(self.cursor, name)
+
+    def cursor(self):
+        """Get a cursor with compatibility shim"""
+        if not self.conn:
+            self.connect()
+        
+        if self.use_postgres:
+            cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+            return self.PgCursorShim(cursor)
+        else:
+            return self.conn.cursor()
+
 
     def connect(self):
         """Connect to database"""
@@ -68,6 +141,22 @@ class ParseHubDatabase:
         """Initialize database schema"""
         conn = self.connect()
         cursor = conn.cursor()
+
+        if self.use_postgres:
+            # Load and execute PG specific schema
+            try:
+                sql_path = Path(__file__).parent / "init_postgres.sql"
+                if sql_path.exists():
+                    with open(sql_path, 'r') as f:
+                        cursor.execute(f.read())
+                    print("[DB] PostgreSQL schema initialized")
+                    conn.commit()
+                    self.disconnect()
+                    return
+            except Exception as e:
+                print(f"[DB] Warning: Failed to load init_postgres.sql: {e}")
+                # Fall through to standard init (sqlite compatible but shimmed)
+
 
         # Projects table
         cursor.execute('''
