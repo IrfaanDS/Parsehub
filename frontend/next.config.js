@@ -4,38 +4,34 @@ const nextConfig = {
 
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
   },
 
   /**
-   * Rewrite /api/:path* → BACKEND_URL/api/:path*
+   * Rewrite /api/:path* → backend /api/:path*
    *
-   * Evaluated at server start (not build time), so BACKEND_URL is read from
-   * the runtime environment. Next.js App Router resolves app/api/ handlers
-   * first; rewrites are a fallback for paths with no route file.
-   *
-   * Set on Railway (frontend service): BACKEND_URL or BACKEND_API_URL.
+   * Use NEXT_PUBLIC_BACKEND_URL on Railway (e.g. https://parsehub-backend-production.up.railway.app).
+   * Do not set it without https://. Fallbacks: BACKEND_URL, BACKEND_API_URL.
    */
   async rewrites() {
-    const backendUrl =
+    const backend =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.BACKEND_URL ||
       process.env.BACKEND_API_URL ||
       '';
 
-    if (!backendUrl) {
+    if (!backend) {
       console.warn(
-        '[next.config] BACKEND_URL is not set — /api/* rewrites disabled. ' +
-        'Set BACKEND_URL in Railway → frontend service → Variables.'
+        '[next.config] NEXT_PUBLIC_BACKEND_URL is not set — /api/* rewrites disabled. ' +
+        'Set NEXT_PUBLIC_BACKEND_URL in Railway → frontend service → Variables.'
       );
       return [];
     }
 
-    const base = backendUrl.replace(/\/$/, '');
+    const base = backend.replace(/\/$/, '');
 
     return [
-      {
-        source: '/api/:path*',
-        destination: `${base}/api/:path*`,
-      },
+      { source: '/api/:path*', destination: `${base}/api/:path*` },
     ];
   },
 

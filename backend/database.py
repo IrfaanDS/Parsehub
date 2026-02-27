@@ -45,6 +45,7 @@ class ParseHubDatabase:
         if self.use_postgres:
             print(f"Using PostgreSQL database: {self.db_url.split('@')[-1]}")
         else:
+            # On Railway use only DATABASE_URL (Postgres). Do not set DATABASE_PATH when using Postgres.
             if db_path is None:
                 db_path = os.getenv('DATABASE_PATH', None)
                 if not db_path:

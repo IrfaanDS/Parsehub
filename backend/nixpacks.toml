@@ -7,4 +7,4 @@
 # psycopg2-binary is a precompiled wheel; no system libpq needed at build time.
 
 [start]
-cmd = "gunicorn api_server:app --bind 0.0.0.0:$PORT --workers 1 --log-level debug"
+cmd = "gunicorn api_server:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level debug"

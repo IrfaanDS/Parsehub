@@ -40,12 +40,11 @@ from auto_sync_service import start_auto_sync_service, stop_auto_sync_service, g
 # Initialize Flask app
 app = Flask(__name__)
 
-# All calls to this backend come from the Next.js server (server-to-server),
-# never directly from a browser.  Server-side requests carry no Origin header,
-# so Flask-CORS is effectively a no-op here — but we still configure it
-# permissively so Railway health checks and any future direct-call use case
-# never get a CORS rejection.
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
+# CORS: use ALLOWED_ORIGINS in production (e.g. https://pi-parsehub-monitor.up.railway.app).
+# If unset, allow all origins so local dev and Railway health checks work.
+_origins = os.getenv('ALLOWED_ORIGINS', '*')
+_cors_origins = [o.strip() for o in _origins.split(',') if o.strip()] if _origins != '*' else '*'
+CORS(app, resources={r"/api/*": {"origins": _cors_origins}, r"/health": {"origins": _cors_origins}}, supports_credentials=False)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -136,7 +135,7 @@ def ensure_services():
     g.request_id = uuid.uuid4().hex[:12]
     # All routes that need the DB use g.db; get_db() is cheap (no connection until first use).
     g.db = get_db()
-    if request.path in ('/api/health', '/api/health/'):
+    if request.path in ('/health', '/health/', '/api/health', '/api/health/'):
         return
     if not _services_initialized:
         _initialize_services()
@@ -156,6 +155,12 @@ def return_db_connection(exc=None):
         logger.warning(f'[teardown] Error returning DB connection: {e}')
 
 # ── Health (single definition each — no Blueprint, no duplicate endpoint) ─────────
+@app.route('/health', methods=['GET'], endpoint='health_root')
+def health_root():
+    """Root health for Railway: https://<backend>.up.railway.app/health → 200 OK."""
+    return jsonify({'ok': True}), 200
+
+
 @app.route('/api/health', methods=['GET'], endpoint='health_liveness')
 def health_check():
     """Liveness probe — never touches the database. Defined exactly once."""
