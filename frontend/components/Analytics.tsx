@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import { useState, useEffect } from 'react'
 import { TrendingUp, Activity } from 'lucide-react'
@@ -50,13 +51,13 @@ export default function Analytics({ projectToken }: AnalyticsProps) {
     try {
       setError(null)
       console.log('Fetching analytics for token:', projectToken)
-      const response = await fetch(`/api/analytics?token=${projectToken}`)
+      const response = await apiClient.get(`/api/analytics?token=${projectToken}`)
       
-      if (!response.ok) {
+      if (!response.status || response.status >= 400) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
       
-      const data = await response.json()
+      const data = response.data
       console.log('Analytics data received:', data)
       
       if (data.error) {

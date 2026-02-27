@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import React, { useState, useEffect } from 'react'
 import { CheckCircle, Clock, AlertCircle, X } from 'lucide-react'
@@ -46,12 +47,12 @@ export default function ProgressModal({
 
     const fetchProgress = async () => {
       try {
-        const response = await fetch(`/api/projects/incremental/progress?session_id=${sessionId}`)
+        const response = await apiClient.get(`/api/projects/incremental/progress?session_id=${sessionId}`)
         
-        const data = await response.json()
+        const data = response.data
         
         // Check if response has an error field
-        if (data.error || !response.ok) {
+        if (data.error || !response.status || response.status >= 400) {
           setError(data.error || 'Failed to fetch progress')
           setLoading(false)
           return

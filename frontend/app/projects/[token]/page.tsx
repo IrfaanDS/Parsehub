@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -312,10 +313,10 @@ export default function ProjectDetailsPage() {
         }),
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       // Check if auto-stop prevented the run
-      if (!response.ok) {
+      if (!response.status === 200) {
         if (data.metadata?.pages_scraped >= data.metadata?.total_pages) {
           setError(
             `✅ Scraping Complete! Already collected ${data.metadata.pages_scraped} of ${data.metadata.total_pages} target pages. ` +
@@ -383,8 +384,8 @@ export default function ProjectDetailsPage() {
         },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      if (!response.status === 200) {
+        const errorData = response.data.catch(() => ({}));
         throw new Error(
           errorData.message ||
             errorData.error ||

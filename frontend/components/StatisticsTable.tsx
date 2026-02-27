@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import React, { useState, useEffect } from 'react'
 import { BarChart3, Loader, AlertCircle } from 'lucide-react'
@@ -46,13 +47,13 @@ export default function StatisticsTable({
         params.append('token', projectToken)
       }
 
-      const response = await fetch(`/api/analytics/statistics?${params.toString()}`)
+      const response = await apiClient.get(`/api/analytics/statistics?${params.toString()}`)
 
-      if (!response.ok) {
+      if (!response.status || response.status >= 400) {
         throw new Error('Failed to load statistics')
       }
 
-      const data = await response.json()
+      const data = response.data
       setStatistics(data.statistics)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

@@ -38,7 +38,7 @@ export async function POST(
 
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       console.error(`[API] Backend returned ${response.status}:`, data);
       return NextResponse.json(
         { error: data.error || 'Failed to cancel run' },

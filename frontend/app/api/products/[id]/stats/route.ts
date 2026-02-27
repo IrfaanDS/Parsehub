@@ -21,7 +21,7 @@ export async function GET(
       }
     );
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       console.error(
         `Backend error: ${response.status} ${response.statusText}`
       );

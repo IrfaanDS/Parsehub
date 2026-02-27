@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import { useEffect, useState } from 'react'
 import Modal from './Modal'
@@ -35,9 +36,9 @@ export default function LogsModal({
   const fetchLogs = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/logs?token=${projectToken}`)
-      if (response.ok) {
-        const data = await response.json()
+      const response = await apiClient.get(`/api/logs?token=${projectToken}`)
+      if (response.status === 200) {
+        const data = response.data
         setLogs(data.logs || [])
       }
     } catch (error) {

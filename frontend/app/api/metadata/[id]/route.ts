@@ -34,7 +34,7 @@ export async function GET(
 
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       console.error(`[API] Backend returned ${response.status}:`, data);
       return NextResponse.json(
         { error: data.error || 'Failed to fetch metadata' },
@@ -81,7 +81,7 @@ export async function PUT(
 
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       console.error(`[API] Backend returned ${response.status}:`, data);
       return NextResponse.json(
         { error: data.error || 'Failed to update metadata' },
@@ -126,7 +126,7 @@ export async function DELETE(
 
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       console.error(`[API] Backend returned ${response.status}:`, data);
       return NextResponse.json(
         { error: data.error || 'Failed to delete metadata' },

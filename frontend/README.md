@@ -30,6 +30,14 @@ The app will be available at `http://localhost:3000`
 
 ## Environment Variables
 
-```
+### Local Development
+```bash
 NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+```
+
+### Production (Railway / Vercel)
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://<your-backend-railway-url>.up.railway.app
+NEXT_PUBLIC_API_KEY=your_parsehub_api_key
 ```

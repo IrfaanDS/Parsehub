@@ -1,3 +1,4 @@
+import apiClient from "@/lib/apiClient";
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface MonitoringSession {
@@ -84,11 +85,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
           }),
         });
 
-        if (!response.ok) {
+        if (!response.status === 200) {
           throw new Error('Failed to start monitoring');
         }
 
-        const result = await response.json();
+        const result = response.data;
 
         if (!result.success && !result.sessionId) {
           throw new Error(result.error || 'Failed to start monitoring');
@@ -138,11 +139,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
       try {
         const response = await fetch(`/api/monitor/status?sessionId=${sessionId}`);
 
-        if (!response.ok) {
+        if (!response.status === 200) {
           throw new Error('Failed to fetch status');
         }
 
-        const result = await response.json();
+        const result = response.data;
 
         setSession((prev) => {
           if (!prev) return null;
@@ -181,11 +182,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
           `/api/monitor/data?sessionId=${sessionId}&limit=100&offset=${dataOffsetRef.current}`
         );
 
-        if (!response.ok) {
+        if (!response.status === 200) {
           throw new Error('Failed to fetch data');
         }
 
-        const result = await response.json();
+        const result = response.data;
 
         // Add new records (avoiding duplicates)
         setData((prev) => {

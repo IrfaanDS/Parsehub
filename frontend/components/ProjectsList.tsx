@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -164,14 +165,14 @@ export default function ProjectsList({
         },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!response.status || response.status >= 400) {
+        const errorData = response.data;
         throw new Error(
           errorData.message || `Failed to cancel run: ${response.statusText}`,
         );
       }
 
-      const data = await response.json();
+      const data = response.data;
       console.log("Run cancelled successfully:", data);
 
       // Trigger a refresh of projects to update status

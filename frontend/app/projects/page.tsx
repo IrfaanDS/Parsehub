@@ -12,6 +12,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Header from "@/components/Header";
+import apiClient from "@/lib/apiClient";
+
 
 interface Metadata {
   id: number;
@@ -74,26 +76,14 @@ export default function ProjectsPage() {
       if (selectedCountry) params.append("country", selectedCountry);
       if (selectedBrand) params.append("brand", selectedBrand);
 
-      const url = "/api/metadata?" + params.toString();
+      const url = "/api/metadata";
       console.log("[Projects] Fetching metadata from:", url);
 
-      const response = await fetch(url, {
-        headers: {
-          "Authorization": `Bearer ${process.env.NEXT_PUBLIC_API_KEY || 't_hmXetfMCq3'}`,
-        },
-      });
+      const response = await apiClient.get(url, { params });
+      const data = response.data;
 
-      console.log("[Projects] Response status:", response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error || errorData.details || `HTTP ${response.status} ${response.statusText}`;
-        console.error("[Projects] API Error:", errorMsg, errorData);
-        throw new Error(`Failed to fetch projects: ${errorMsg}`);
-      }
-
-      const data = await response.json();
       console.log("[Projects] Successfully fetched", data.count || 0, "records");
+
 
       if (data.records && Array.isArray(data.records)) {
         setProjects(data.records);
@@ -114,8 +104,8 @@ export default function ProjectsPage() {
       }
 
       setLoading(false);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+    } catch (err: any) {
+      const errorMsg = err.message || String(err);
       console.error("[Projects] Error:", errorMsg);
       setError(errorMsg);
       setLoading(false);
@@ -166,29 +156,13 @@ export default function ProjectsPage() {
 
     try {
       console.log("[Projects] Starting batch execution for", queue.length, "projects");
-      
-      const response = await fetch("/api/runs/batch-execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.NEXT_PUBLIC_API_KEY || 't_hmXetfMCq3'}`,
-        },
-        body: JSON.stringify({
-          metadata_ids: Array.from(selectedProjects),
-        }),
+
+      await apiClient.post("/api/runs/batch-execute", {
+        metadata_ids: Array.from(selectedProjects),
       });
 
-      console.log("[Projects] Batch execute response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error || `HTTP ${response.status}`;
-        console.error("[Projects] Batch execution error:", errorMsg);
-        throw new Error(`Failed to queue batch execution: ${errorMsg}`);
-      }
-
-      const data = await response.json();
       console.log("[Projects] Batch execution queued successfully");
+
 
       // Simulate execution progress (real implementation would poll backend)
       for (let i = 0; i < queue.length; i++) {
@@ -210,8 +184,8 @@ export default function ProjectsPage() {
       setSelectedProjects(new Set());
       console.log("[Projects] Batch execution completed");
       await fetchProjects();
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+    } catch (err: any) {
+      const errorMsg = err.message || String(err);
       console.error("[Projects] Batch execution failed:", errorMsg);
       setError(errorMsg);
     } finally {
@@ -257,10 +231,20 @@ export default function ProjectsPage() {
         {error && (
           <div className="mb-6 bg-red-900/30 backdrop-blur-sm border border-red-700/50 rounded-xl p-4 flex items-start gap-3 shadow-lg shadow-red-900/20">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-300">Error</p>
+            <div className="flex-1">
+              <p className="font-semibold text-red-300">
+                {error.toLowerCase().includes('unreachable') ? 'Backend Unreachable' : 'Error'}
+              </p>
               <p className="text-red-400 text-sm mt-0.5">{error}</p>
             </div>
+            {error.toLowerCase().includes('unreachable') && (
+              <button
+                onClick={fetchProjects}
+                className="px-4 py-1.5 bg-red-800 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
@@ -273,11 +257,10 @@ export default function ProjectsPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border ${
-                hasActiveFilters
-                  ? "bg-amber-900/30 border-amber-600/50 text-amber-300"
-                  : "bg-slate-800 hover:bg-slate-700 border-slate-700"
-              }`}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border ${hasActiveFilters
+                ? "bg-amber-900/30 border-amber-600/50 text-amber-300"
+                : "bg-slate-800 hover:bg-slate-700 border-slate-700"
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filters {hasActiveFilters && "✓"}

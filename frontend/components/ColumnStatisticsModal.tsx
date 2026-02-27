@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import { useState, useEffect } from "react";
 import { Download, BarChart3 } from "lucide-react";
@@ -49,11 +50,11 @@ export default function ColumnStatisticsModal({
           },
         );
 
-        if (!response.ok) {
+        if (!response.status || response.status >= 400) {
           throw new Error(`API error: ${response.status}`);
         }
 
-        const result = await response.json();
+        const result = response.data;
 
         if (!result.csv_data) {
           setError(

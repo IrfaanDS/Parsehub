@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import React, { useState, useEffect } from 'react'
 import { Activity, AlertCircle, CheckCircle, Clock } from 'lucide-react'
@@ -30,9 +31,9 @@ export default function RunProgress({
           ? `/api/projects/${projectToken}/${runToken}`
           : `/api/projects/${projectToken}`
 
-        const response = await fetch(url)
-        if (response.ok) {
-          const data = await response.json()
+        const response = await apiClient.get(url)
+        if (response.status === 200) {
+          const data = response.data
           setStatus(data)
           
           // Stop auto-refresh if run is complete

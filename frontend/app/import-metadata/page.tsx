@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -89,12 +90,12 @@ export default function ImportMetadataPage() {
 
       console.log("[Import] Import history response status:", response.status);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         console.log("[Import] Successfully fetched import history -", data.count || 0, "batches");
         setImportHistory(data.batches || []);
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = response.data.catch(() => ({}));
         console.error("[Import] Failed to fetch history:", response.status, errorData);
       }
     } catch (err) {
@@ -182,10 +183,10 @@ export default function ImportMetadataPage() {
 
       console.log("[Import] Response status:", response.status, response.statusText);
 
-      const data: ImportResult = await response.json();
+      const data: ImportResult = response.data;
       console.log("[Import] Response data:", data);
 
-      if (response.ok && data.success) {
+      if (response.status === 200 && data.success) {
         console.log("[Import] Successfully imported", data.stats?.imported, "records");
         setResult(data);
         setFile(null);

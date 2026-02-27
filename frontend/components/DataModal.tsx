@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Database, Copy, Download } from 'lucide-react'
@@ -43,11 +44,11 @@ export default function DataModal({ token, title, isOpen, onClose }: ProjectData
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/data?token=${token}`)
-      if (!response.ok) {
+      const response = await apiClient.get(`/api/data?token=${token}`)
+      if (!response.status || response.status >= 400) {
         throw new Error('Failed to fetch data')
       }
-      const result = await response.json()
+      const result = response.data
       setData(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')

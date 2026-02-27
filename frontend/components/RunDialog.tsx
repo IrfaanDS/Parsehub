@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import React, { useState } from "react";
 import Modal from "./Modal";
@@ -60,11 +61,11 @@ export default function RunDialog({
         let urlToUse = projectURL;
         if (!urlToUse) {
           try {
-            const projectDetailsRes = await fetch(
+            const projectDetailsRes = await apiClient.get(
               `/api/projects/${projectToken}`,
             );
-            if (projectDetailsRes.ok) {
-              const projectData = await projectDetailsRes.json();
+            if (projectDetailsRes.status === 200) {
+              const projectData = projectDetailsRes.data;
               urlToUse =
                 projectData.project?.url ||
                 projectData.project?.main_site ||
@@ -77,25 +78,19 @@ export default function RunDialog({
         }
 
         // Start incremental scraping
-        const response = await fetch("/api/projects/incremental", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            project_token: projectToken,
-            project_name: projectTitle,
-            original_url: urlToUse,
-            total_pages: totalPagesNum,
-            pages_per_iteration: pagesNum,
-          }),
+        const response = await apiClient.post("/api/projects/incremental", {
+          project_token: projectToken,
+          project_name: projectTitle,
+          original_url: urlToUse,
+          total_pages: totalPagesNum,
+          pages_per_iteration: pagesNum,
         });
 
-        if (!response.ok) {
+        if (!response.status || response.status >= 400) {
           throw new Error("Failed to start incremental scraping");
         }
 
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           setPages("");
@@ -109,22 +104,16 @@ export default function RunDialog({
         }
       } else {
         // Regular run
-        const response = await fetch("/api/projects/run", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            token: projectToken,
-            pages: pagesNum,
-          }),
+        const response = await apiClient.post("/api/projects/run", {
+          token: projectToken,
+          pages: pagesNum,
         });
 
-        if (!response.ok) {
+        if (!response.status || response.status >= 400) {
           throw new Error("Failed to start run");
         }
 
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success && data.run_token) {
           onRunStart(data.run_token, pagesNum);
@@ -329,11 +318,10 @@ export default function RunDialog({
             <button
               onClick={handleRun}
               disabled={isRunning || isLoading}
-              className={`px-6 py-3 text-white font-semibold rounded-xl flex items-center gap-2 disabled:cursor-not-allowed transition-all duration-200 shadow-lg ${
-                useIncremental
-                  ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:from-slate-700 disabled:to-slate-700 shadow-amber-500/25"
-                  : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-700 disabled:to-slate-700 shadow-blue-500/25"
-              }`}
+              className={`px-6 py-3 text-white font-semibold rounded-xl flex items-center gap-2 disabled:cursor-not-allowed transition-all duration-200 shadow-lg ${useIncremental
+                ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:from-slate-700 disabled:to-slate-700 shadow-amber-500/25"
+                : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-700 disabled:to-slate-700 shadow-blue-500/25"
+                }`}
             >
               <Play className="w-4 h-4" />
               {isRunning || isLoading

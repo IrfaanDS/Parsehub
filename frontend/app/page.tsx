@@ -16,6 +16,8 @@ import ProjectsList from "@/components/ProjectsList";
 import StatsCard from "@/components/StatsCard";
 import Header from "@/components/Header";
 import AllProjectsAnalyticsModal from "@/components/AllProjectsAnalyticsModal";
+import apiClient from "@/lib/apiClient";
+
 import RunDialog from "@/components/RunDialog";
 import { useRealTimeMonitoring } from "@/lib/useRealTimeMonitoring";
 
@@ -33,19 +35,6 @@ interface Project {
   } | null;
 }
 
-interface Metadata {
-  id: number;
-  personal_project_id: string;
-  project_name: string;
-  region?: string;
-  country?: string;
-  brand?: string;
-  website_url?: string;
-  total_pages?: number;
-  current_page_scraped?: number;
-  last_run_date?: string;
-}
-
 interface Stats {
   total: number;
   running: number;
@@ -55,7 +44,6 @@ interface Stats {
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [metadata, setMetadata] = useState<Metadata[]>([]);
   const [stats, setStats] = useState<Stats>({
     total: 0,
     running: 0,
@@ -110,19 +98,10 @@ export default function Home() {
     try {
       console.log("[Home] Fetching filter options...");
 
-      const response = await fetch("/api/filters", {
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY || "t_hmXetfMCq3"}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error("[Home] Filter options error:", response.status);
-        return;
-      }
-
-      const data = await response.json();
+      const response = await apiClient.get("/api/filters");
+      const data = response.data;
       console.log("[Home] Successfully fetched filter options");
+
 
       if (data.filters) {
         setRegions(data.filters.regions || []);
@@ -144,30 +123,14 @@ export default function Home() {
       console.log("[Home] Fetching metadata...");
 
       const params = new URLSearchParams();
-      const response = await fetch("/api/metadata?" + params.toString(), {
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY || "t_hmXetfMCq3"}`,
-        },
-      });
+      const response = await apiClient.get("/api/metadata", { params });
+      const data = response.data;
 
-      console.log("[Home] Metadata response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[Home] Metadata error:", response.status, errorData);
-        return;
-      }
-
-      const data = await response.json();
       console.log(
         "[Home] Successfully fetched",
         data.count || 0,
         "metadata records",
       );
-
-      if (data.records) {
-        setMetadata(data.records);
-      }
     } catch (err) {
       console.error("[Home] Error fetching metadata:", err);
     }
@@ -201,20 +164,12 @@ export default function Home() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch(url, {
+      const response = await apiClient.get(url, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
-      console.log("[Home] Projects response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error || `HTTP ${response.status}`;
-        throw new Error(`Failed to fetch projects: ${errorMsg}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
       console.log(
         "[Home] Backend returned response with keys:",
         Object.keys(data),
@@ -294,21 +249,9 @@ export default function Home() {
 
       console.log("[Home] Starting project sync...");
 
-      const response = await fetch("/api/projects/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY || "t_hmXetfMCq3"}`,
-        },
-        body: JSON.stringify({}),
-      });
+      const response = await apiClient.post("/api/projects/sync");
+      const data = response.data;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to sync projects");
-      }
-
-      const data = await response.json();
       console.log("[Home] Sync completed:", data);
 
       setSyncMessage(
@@ -331,10 +274,9 @@ export default function Home() {
   const handleRunAll = async () => {
     try {
       setError(null);
-      const response = await fetch("/api/projects/run-all", { method: "POST" });
-      if (!response.ok) throw new Error("Failed to run projects");
-
+      await apiClient.post("/api/projects/run-all");
       setTimeout(fetchProjects, 1000);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run projects");
     }
@@ -359,10 +301,20 @@ export default function Home() {
         <div className="container mx-auto px-6 py-4 mt-6">
           <div className="bg-red-900/30 backdrop-blur-sm border border-red-700/50 rounded-xl p-4 flex items-start gap-3 shadow-lg shadow-red-900/20">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-300">Error</p>
+            <div className="flex-1">
+              <p className="font-semibold text-red-300">
+                {error.toLowerCase().includes('unreachable') ? 'Backend Unreachable' : 'Error'}
+              </p>
               <p className="text-red-400 text-sm mt-0.5">{error}</p>
             </div>
+            {error.toLowerCase().includes('unreachable') && (
+              <button
+                onClick={fetchProjects}
+                className="px-4 py-1.5 bg-red-800 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -436,22 +388,20 @@ export default function Home() {
           </button>
           <button
             onClick={() => setFetchAll(!fetchAll)}
-            className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 border ${
-              fetchAll
-                ? "bg-orange-900/30 border-orange-600/50 text-orange-300"
-                : "bg-slate-800 hover:bg-slate-700 border-slate-700"
-            }`}
+            className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 border ${fetchAll
+              ? "bg-orange-900/30 border-orange-600/50 text-orange-300"
+              : "bg-slate-800 hover:bg-slate-700 border-slate-700"
+              }`}
           >
             <Download className="w-5 h-5" />
             {fetchAll ? "All Projects" : "View per 50"}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 border ${
-              hasActiveFilters
-                ? "bg-amber-900/30 border-amber-600/50 text-amber-300"
-                : "bg-slate-800 hover:bg-slate-700 border-slate-700"
-            }`}
+            className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 border ${hasActiveFilters
+              ? "bg-amber-900/30 border-amber-600/50 text-amber-300"
+              : "bg-slate-800 hover:bg-slate-700 border-slate-700"
+              }`}
           >
             <Filter className="w-5 h-5" />
             {showFilters ? "Hide" : "Show"} Filters {hasActiveFilters && "✓"}

@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import { useState } from 'react'
 import Modal from './Modal'
@@ -25,9 +26,9 @@ export default function ExportModal({
     setMessage(null)
 
     try {
-      const response = await fetch(`/api/export?token=${projectToken}&format=${format}`)
+      const response = await apiClient.get(`/api/export?token=${projectToken}&format=${format}`)
 
-      if (response.ok) {
+      if (response.status === 200) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')

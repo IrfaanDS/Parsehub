@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import { useEffect, useState, useCallback } from 'react'
 import Modal from './Modal'
@@ -85,9 +86,9 @@ export default function AnalyticsModal({
     setError(null)
     try {
       const forceParam = forceRefresh ? '&force=true' : ''
-      const response = await fetch(`/api/analytics?token=${projectToken}${forceParam}`)
-      if (response.ok) {
-        const data = await response.json()
+      const response = await apiClient.get(`/api/analytics?token=${projectToken}${forceParam}`)
+      if (response.status === 200) {
+        const data = response.data
         console.log('Analytics fetched:', data)
         setAnalytics(data)
       } else {

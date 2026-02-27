@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import { useState, useEffect } from "react";
 import { Download, Eye, FileJson, Loader2, FileText } from "lucide-react";
@@ -45,13 +46,13 @@ export default function CSVDataModal({
           },
         );
 
-        if (!response.ok) {
+        if (!response.status || response.status >= 400) {
           throw new Error(
             `API error: ${response.status} ${response.statusText}`,
           );
         }
 
-        const result = await response.json();
+        const result = response.data;
 
         // Extract CSV data
         if (result.csv_data) {

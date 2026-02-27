@@ -1,4 +1,5 @@
 'use client'
+import apiClient from "@/lib/apiClient";
 
 import React, { useState, useEffect } from 'react'
 import { Eye, Loader, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -38,13 +39,13 @@ export default function DataViewer({
         params.append('token', projectToken)
       }
 
-      const response = await fetch(`/api/data?${params.toString()}`)
+      const response = await apiClient.get(`/api/data?${params.toString()}`)
 
-      if (!response.ok) {
+      if (!response.status || response.status >= 400) {
         throw new Error('Failed to load data')
       }
 
-      const result = await response.json()
+      const result = response.data
       setData(result.data || [])
       setCurrentPage(1)
     } catch (err) {

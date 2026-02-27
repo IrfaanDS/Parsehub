@@ -21,7 +21,7 @@ export async function GET(
       }
     )
 
-    if (!response.ok) {
+    if (!response.status === 200) {
       return NextResponse.json(
         { error: 'Failed to fetch analytics' },
         { status: response.status }

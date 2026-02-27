@@ -1,4 +1,5 @@
 "use client";
+import apiClient from "@/lib/apiClient";
 
 import { useState } from "react";
 import Modal from "./Modal";
@@ -35,22 +36,18 @@ export default function SchedulerModal({
     try {
       const scheduledDateTime = `${date}T${time}`;
 
-      const response = await fetch("/api/projects/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectToken,
-          scheduleType,
-          scheduledTime: scheduledDateTime,
-          frequency: scheduleType === "recurring" ? frequency : undefined,
-          dayOfWeek:
-            scheduleType === "recurring" && frequency === "weekly"
-              ? dayOfWeek
-              : undefined,
-        }),
+      const response = await apiClient.post("/api/projects/schedule", {
+        projectToken,
+        scheduleType,
+        scheduledTime: scheduledDateTime,
+        frequency: scheduleType === "recurring" ? frequency : undefined,
+        dayOfWeek:
+          scheduleType === "recurring" && frequency === "weekly"
+            ? dayOfWeek
+            : undefined,
       });
 
-      if (response.ok) {
+      if (response.status === 200) {
         alert(`✅ Scheduled successfully for ${scheduledDateTime}`);
         onSchedule(scheduledDateTime);
         onClose();
@@ -76,21 +73,19 @@ export default function SchedulerModal({
           <div className="flex gap-2 bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-slate-700/50">
             <button
               onClick={() => setScheduleType("once")}
-              className={`flex-1 py-2.5 px-3 rounded-md font-medium transition-all duration-200 ${
-                scheduleType === "once"
+              className={`flex-1 py-2.5 px-3 rounded-md font-medium transition-all duration-200 ${scheduleType === "once"
                   ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/20"
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-              }`}
+                }`}
             >
               Run Once
             </button>
             <button
               onClick={() => setScheduleType("recurring")}
-              className={`flex-1 py-2.5 px-3 rounded-md font-medium transition-all duration-200 ${
-                scheduleType === "recurring"
+              className={`flex-1 py-2.5 px-3 rounded-md font-medium transition-all duration-200 ${scheduleType === "recurring"
                   ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/20"
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-              }`}
+                }`}
             >
               Recurring
             </button>
