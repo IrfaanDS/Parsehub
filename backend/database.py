@@ -2085,6 +2085,40 @@ class ParseHubDatabase:
             self.disconnect()
             return []
 
+    def _get_distinct_regions_from_metadata(self) -> list:
+        """
+        Return distinct regions from metadata.region using TRIM; used by /api/filters.
+        SELECT DISTINCT TRIM(region) FROM metadata WHERE region IS NOT NULL AND TRIM(region) != '' ORDER BY 1
+        """
+        try:
+            self.connect()
+            cursor = self.cursor()
+            if self.use_postgres:
+                cursor.execute('''
+                    SELECT DISTINCT TRIM(region) AS region
+                    FROM metadata
+                    WHERE region IS NOT NULL AND TRIM(region) != ''
+                    ORDER BY 1
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT DISTINCT TRIM(region) AS region
+                    FROM metadata
+                    WHERE region IS NOT NULL AND TRIM(region) != ''
+                    ORDER BY 1
+                ''')
+            rows = cursor.fetchall()
+            out = [r.get('region', r[0]) if isinstance(r, dict) else r[0] for r in rows if (r.get('region') if isinstance(r, dict) else r[0])]
+            self.disconnect()
+            return out
+        except Exception as e:
+            print(f"Error getting distinct regions from metadata: {e}")
+            try:
+                self.disconnect()
+            except Exception:
+                pass
+            return []
+
     def _get_distinct_regions_from_project_titles(self) -> list:
         """Fallback: derive region values from project titles (e.g. trailing (APAC), (EMENA), (LATAM))."""
         import re
@@ -2132,11 +2166,12 @@ class ParseHubDatabase:
                     col = columns_lookup[k.lower()]
                     break
             if col:
-                result[field] = self._get_distinct_values_for_metadata_column(col)
-            # else leave empty list
-        # Fallback: if no regions from metadata (column empty), derive from project titles e.g. (APAC), (EMENA), (LATAM)
-        if not result['regions']:
-            result['regions'] = self._get_distinct_regions_from_project_titles()
+                if field == 'regions' and col:
+                    result['regions'] = self._get_distinct_regions_from_metadata()
+                else:
+                    result[field] = self._get_distinct_values_for_metadata_column(col)
+            if field == 'regions' and not result['regions']:
+                result['regions'] = self._get_distinct_regions_from_project_titles()
         return result
 
     def get_metadata_filtered(self, project_token: str = None, region: str = None, country: str = None,
@@ -2481,14 +2516,16 @@ class ParseHubDatabase:
                     skipped += 1
                     continue
 
+                parsed_region = self.parse_region_from_title(title)
                 try:
                     cursor.execute('''
                         UPDATE metadata
                         SET project_id = %s,
                             project_token = %s,
-                            updated_date = %s
+                            updated_date = %s,
+                            region = COALESCE(NULLIF(TRIM(region), ''), %s)
                         WHERE id = %s
-                    ''', (project_id, token, datetime.now().isoformat(), matched_metadata_id))
+                    ''', (project_id, token, datetime.now().isoformat(), parsed_region, matched_metadata_id))
 
                     cursor.execute('''
                         INSERT OR IGNORE INTO project_metadata (project_id, metadata_id)
@@ -2513,6 +2550,56 @@ class ParseHubDatabase:
             print(f"Error syncing metadata with projects: {e}")
             self.disconnect()
             return {'success': False, 'error': str(e), 'linked': 0, 'skipped': 0, 'errors': []}
+
+    def backfill_metadata_region(self) -> dict:
+        """
+        One-time migration: set metadata.region from project_name (trailing (APAC), (LATAM), etc.)
+        for rows where region IS NULL OR TRIM(region) = ''.
+        Returns { 'updated': count, 'skipped': count, 'errors': [] }.
+        """
+        try:
+            self.connect()
+            cursor = self.cursor()
+            cursor.execute('''
+                SELECT id, project_name FROM metadata
+                WHERE region IS NULL OR TRIM(region) = ''
+            ''')
+            rows = cursor.fetchall()
+            updated = 0
+            skipped = 0
+            errors = []
+            for r in rows:
+                mid = r.get('id', r[0]) if isinstance(r, dict) else r[0]
+                source = r.get('project_name', r[1]) if isinstance(r, dict) else r[1]
+                if not source:
+                    source = None
+                if not mid:
+                    continue
+                parsed = self.parse_region_from_title(source) if source else None
+                if not parsed:
+                    skipped += 1
+                    continue
+                try:
+                    cursor.execute(
+                        'UPDATE metadata SET region = %s WHERE id = %s',
+                        (parsed, mid)
+                    )
+                    updated += 1
+                except Exception as e:
+                    errors.append(f"id={mid}: {e}")
+            try:
+                if self.conn:
+                    self.conn.commit()
+            except Exception:
+                pass
+            self.disconnect()
+            return {'updated': updated, 'skipped': skipped, 'errors': errors}
+        except Exception as e:
+            try:
+                self.disconnect()
+            except Exception:
+                pass
+            return {'updated': 0, 'skipped': 0, 'errors': [str(e)]}
 
     def _link_projects_to_metadata(self, cursor):
         """Auto-link projects to metadata by matching project names"""
@@ -2685,6 +2772,17 @@ class ParseHubDatabase:
             print(f"Error getting projects count: {e}")
             self.disconnect()
             return 0
+
+    def parse_region_from_title(self, text: str) -> Optional[str]:
+        """
+        Extract region from end of project_name/title, e.g. "(APAC)", "(LATAM)", "(EMENA)".
+        Returns the value inside the trailing parentheses or None.
+        """
+        if not text or not isinstance(text, str):
+            return None
+        import re
+        m = re.search(r'\s*\(([^)]+)\)\s*$', text.strip())
+        return m.group(1).strip() if m else None
 
     def extract_website_from_title(self, title: str) -> str:
         """
