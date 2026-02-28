@@ -2085,6 +2085,33 @@ class ParseHubDatabase:
             self.disconnect()
             return []
 
+    def _get_distinct_regions_from_project_titles(self) -> list:
+        """Fallback: derive region values from project titles (e.g. trailing (APAC), (EMENA), (LATAM))."""
+        import re
+        try:
+            self.connect()
+            cursor = self.cursor()
+            cursor.execute('SELECT title FROM projects WHERE title IS NOT NULL AND title != \'\'')
+            rows = cursor.fetchall()
+            self.disconnect()
+            pattern = re.compile(r'\s*\(([^)]+)\)\s*$')
+            regions = set()
+            for r in rows:
+                title = r.get('title', r[0]) if isinstance(r, dict) else (r[0] if r else '')
+                if not title:
+                    continue
+                m = pattern.search(title)
+                if m:
+                    regions.add(m.group(1).strip())
+            return sorted(regions)
+        except Exception as e:
+            print(f"Error getting regions from project titles: {e}")
+            try:
+                self.disconnect()
+            except Exception:
+                pass
+            return []
+
     def get_filters_schema_aware(self) -> dict:
         """Return filters (regions, countries, brands, websites) using actual metadata columns."""
         CANDIDATES = {
@@ -2094,7 +2121,6 @@ class ParseHubDatabase:
             'website': ['website', 'Website', 'site', 'domain', 'main_site', 'website_url'],
         }
         columns = self.get_metadata_table_columns()
-        columns_set = set(c.lower() for c in columns)
         columns_lookup = {c.lower(): c for c in columns}
 
         result = {'regions': [], 'countries': [], 'brands': [], 'websites': []}
@@ -2108,6 +2134,9 @@ class ParseHubDatabase:
             if col:
                 result[field] = self._get_distinct_values_for_metadata_column(col)
             # else leave empty list
+        # Fallback: if no regions from metadata (column empty), derive from project titles e.g. (APAC), (EMENA), (LATAM)
+        if not result['regions']:
+            result['regions'] = self._get_distinct_regions_from_project_titles()
         return result
 
     def get_metadata_filtered(self, project_token: str = None, region: str = None, country: str = None,
@@ -2766,8 +2795,10 @@ class ParseHubDatabase:
             '''
             params = []
             if region:
-                base_query += ' AND m.region = %s'
+                # Match metadata.region OR project title ending with (region) e.g. (APAC), (EMENA)
+                base_query += ' AND (m.region = %s OR p.title LIKE %s)'
                 params.append(region)
+                params.append('%(' + region + ')')
             if country:
                 base_query += ' AND m.country = %s'
                 params.append(country)
@@ -2783,7 +2814,7 @@ class ParseHubDatabase:
                 WHERE 1=1
             '''
             if region:
-                count_query += ' AND m.region = %s'
+                count_query += ' AND (m.region = %s OR p.title LIKE %s)'
             if country:
                 count_query += ' AND m.country = %s'
             if brand:
