@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND_URL = getApiBaseUrl();
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -19,7 +19,7 @@ export async function GET(
       }
     );
 
-    if (!response.status === 200) {
+    if (response.status !== 200) {
       console.error(
         `Backend error: ${response.status} ${response.statusText}`
       );

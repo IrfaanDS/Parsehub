@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 
 import { useState, useEffect } from "react";
@@ -56,7 +55,7 @@ export default function ColumnStatisticsModal({
           throw new Error(`API error: ${response.status}`);
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         if (!result.csv_data) {
           setError(

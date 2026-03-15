@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 
 import { useState, useEffect } from "react";
@@ -54,7 +53,7 @@ export default function CSVDataModal({
           );
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         // Extract CSV data
         if (result.csv_data) {

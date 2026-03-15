@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -76,15 +75,7 @@ interface Metadata {
   status?: string;
 }
 
-interface RunStats {
-  total_runs?: number;
-  completed_runs?: number;
-  pages_scraped?: number;
-  products_scraped?: number;
-  last_run_date?: string;
-  average_pages_per_run?: number;
-  success_rate?: number;
-}
+
 
 interface ProductStats {
   statistics?: {
@@ -300,10 +291,10 @@ export default function ProjectDetailsPage() {
         }),
       });
 
-      const data = response.data;
+      const data = await response.json();
 
       // Check if auto-stop prevented the run
-      if (!response.status === 200) {
+      if (response.status !== 200) {
         if (data.metadata?.pages_scraped >= data.metadata?.total_pages) {
           setError(
             `✅ Scraping Complete! Already collected ${data.metadata.pages_scraped} of ${data.metadata.total_pages} target pages. ` +
@@ -371,8 +362,11 @@ export default function ProjectDetailsPage() {
         },
       });
 
-      if (!response.status === 200) {
-        const errorData = response.data.catch(() => ({}));
+      if (response.status !== 200) {
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch(e) {}
         throw new Error(
           errorData.message ||
             errorData.error ||
@@ -1084,7 +1078,7 @@ export default function ProjectDetailsPage() {
                                       <div
                                         className="bg-emerald-500 h-full rounded-full"
                                         style={{
-                                          width: `${(country.count / productStats.statistics.total_products) * 100}%`,
+                                          width: `${productStats.statistics!.total_products > 0 ? (country.count / productStats.statistics!.total_products) * 100 : 0}%`,
                                         }}
                                       />
                                     </div>

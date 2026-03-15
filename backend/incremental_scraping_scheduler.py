@@ -15,10 +15,7 @@ root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-try:
-    from incremental_scraping_manager import IncrementalScrapingManager
-except ImportError:
-    from incremental_scraping_manager import IncrementalScrapingManager
+from incremental_scraping_manager import IncrementalScrapingManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -145,7 +142,6 @@ def stop_incremental_scraping_scheduler():
 
 def get_scheduler():
     """Get the current scheduler instance"""
-    global _scheduler
     return _scheduler
 
 

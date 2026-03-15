@@ -1,4 +1,3 @@
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 import { useState, useEffect, useCallback, useRef } from 'react';
 
@@ -87,11 +86,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
           }),
         });
 
-        if (!response.status === 200) {
+        if (response.status !== 200) {
           throw new Error('Failed to start monitoring');
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         if (!result.success && !result.sessionId) {
           throw new Error(result.error || 'Failed to start monitoring');
@@ -143,11 +142,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
           headers: getApiHeaders(),
         });
 
-        if (!response.status === 200) {
+        if (response.status !== 200) {
           throw new Error('Failed to fetch status');
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         setSession((prev) => {
           if (!prev) return null;
@@ -187,11 +186,11 @@ export function useRealTimeMonitoring(): UseRealTimeMonitoringReturn {
           { headers: getApiHeaders() }
         );
 
-        if (!response.status === 200) {
+        if (response.status !== 200) {
           throw new Error('Failed to fetch data');
         }
 
-        const result = response.data;
+        const result = await response.json();
 
         // Add new records (avoiding duplicates)
         setData((prev) => {

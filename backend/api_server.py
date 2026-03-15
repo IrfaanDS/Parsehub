@@ -279,7 +279,8 @@ def start_monitoring():
         # If project_id not provided, infer from run token in active runs
         if not project_id:
             try:
-                with open('../active_runs.json', 'r') as f:
+                active_runs_path = Path(__file__).parent.parent / 'active_runs.json'
+                with open(active_runs_path, 'r') as f:
                     active_runs = json.load(f)
                     for project in active_runs.get('projects', []):
                         for run in project.get('runs', []):
@@ -693,7 +694,7 @@ def get_completion_status(metadata_id):
         return jsonify({'error': 'Unauthorized'}), 401
 
     try:
-        result = auto_runner_service.check_scraping_completion(metadata_id)
+        result = _auto_runner_service.check_scraping_completion(metadata_id)
 
         if not result.get('success'):
             return jsonify({'error': result.get('error')}), 400
@@ -743,7 +744,7 @@ def import_metadata():
 
         try:
             # Import metadata
-            result = excel_import_service.bulk_import_metadata(
+            result = _excel_import_service.bulk_import_metadata(
                 temp_path, uploaded_by)
 
             # Clean up temp file

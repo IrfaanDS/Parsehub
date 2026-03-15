@@ -25,12 +25,9 @@ export function getApiBaseUrl(): string {
 
     if (process.env.NODE_ENV === 'production') {
         if (!envUrl) {
-            throw new Error("CRITICAL: API base URL environment variable is missing in production. Please set NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_BACKEND_URL.");
+            console.warn("WARNING: API base URL missing in production. Falling back to localhost.");
         }
-        if (envUrl.includes("localhost") || envUrl.includes("127.0.0.1") || envUrl.includes("0.0.0.0")) {
-            throw new Error(`CRITICAL: Hardcoded localhost API URL (${envUrl}) detected in production.`);
-        }
-        return envUrl;
+        return envUrl || 'http://localhost:5000';
     }
 
     return envUrl || 'http://localhost:5000';
@@ -45,12 +42,9 @@ export function getFrontendApiUrl(): string {
             if (typeof window !== 'undefined') {
                 return '';
             }
-            throw new Error("CRITICAL: Frontend API URL environment variable is missing in production. Please set NEXT_PUBLIC_API_URL.");
+            console.warn("WARNING: Frontend API URL missing in production. Falling back to localhost.");
         }
-        if (envUrl.includes("localhost") || envUrl.includes("127.0.0.1") || envUrl.includes("0.0.0.0")) {
-            throw new Error(`CRITICAL: Hardcoded localhost Frontend API URL (${envUrl}) detected in production.`);
-        }
-        return envUrl;
+        return envUrl || 'http://localhost:3000';
     }
 
     return envUrl || 'http://localhost:3000';

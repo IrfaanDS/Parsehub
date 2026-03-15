@@ -1,0 +1,6 @@
+﻿.\analytics_service.py:189:47: F821 undefined name 'timedelta'
+.\api_server.py:696:18: F821 undefined name 'auto_runner_service'
+.\api_server.py:746:22: F821 undefined name 'excel_import_service'
+.\fetch_projects.py:27:5: F824 `global _projects_cache` is unused: name is never assigned in scope
+.\fetch_projects.py:27:5: F824 `global _cache_timestamp` is unused: name is never assigned in scope
+.\incremental_scraping_scheduler.py:148:5: F824 `global _scheduler` is unused: name is never assigned in scope

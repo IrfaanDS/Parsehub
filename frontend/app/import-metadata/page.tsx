@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 
 import { useEffect, useState, useRef } from "react";
@@ -9,18 +8,10 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Trash2,
   Eye,
   EyeOff,
 } from "lucide-react";
 import Header from "@/components/Header";
-
-interface PreviewRow {
-  name: string;
-  value: string;
-  status: "valid" | "error";
-  error?: string;
-}
 
 interface ImportResult {
   batch_id?: number;
@@ -71,7 +62,6 @@ export default function ImportMetadataPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(true);
   const [importHistory, setImportHistory] = useState<ImportHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -90,11 +80,14 @@ export default function ImportMetadataPage() {
       console.log("[Import] Import history response status:", response.status);
 
       if (response.status === 200) {
-        const data = response.data;
+        const data = await response.json();
         console.log("[Import] Successfully fetched import history -", data.count || 0, "batches");
         setImportHistory(data.batches || []);
       } else {
-        const errorData = response.data.catch(() => ({}));
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch(e) {}
         console.error("[Import] Failed to fetch history:", response.status, errorData);
       }
     } catch (err) {
@@ -180,7 +173,7 @@ export default function ImportMetadataPage() {
 
       console.log("[Import] Response status:", response.status, response.statusText);
 
-      const data: ImportResult = response.data;
+      const data: ImportResult = await response.json();
       console.log("[Import] Response data:", data);
 
       if (response.status === 200 && data.success) {

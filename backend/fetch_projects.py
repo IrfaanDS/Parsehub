@@ -24,7 +24,6 @@ _cache_lock = None  # Prevent multiple simultaneous fetches
 
 def _is_cache_valid():
     """Check if cache exists and is still valid"""
-    global _projects_cache, _cache_timestamp
     if _projects_cache is None or _cache_timestamp is None:
         return False
     elapsed = time.time() - _cache_timestamp
@@ -101,9 +100,10 @@ def fetch_all_projects(api_key: str) -> List[Dict]:
     
     try:
         logger.info(f"[FETCH] Making initial API call to get total project count...")
+        session = create_session_with_retries()
         
         # First request to get total count
-        response = requests.get(
+        response = session.get(
             PARSEHUB_BASE_URL,
             params={"api_key": api_key, "offset": 0},
             timeout=REQUEST_TIMEOUT
@@ -129,7 +129,7 @@ def fetch_all_projects(api_key: str) -> List[Dict]:
                 offset = page * 20
                 logger.info(f"[FETCH] Fetching page {page + 1}/{pages_needed} (offset={offset})...")
                 
-                page_response = requests.get(
+                page_response = session.get(
                     PARSEHUB_BASE_URL,
                     params={"api_key": api_key, "offset": offset},
                     timeout=REQUEST_TIMEOUT

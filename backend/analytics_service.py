@@ -3,7 +3,7 @@ Analytics Service - Provides detailed analytics and data analysis
 """
 
 from database import ParseHubDatabase
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 import json
@@ -466,7 +466,7 @@ class AnalyticsService:
                 project_token,
                 run_token,
                 analytics,
-                csv_data=self.generate_analytics_csv(project_token)
+                csv_data=self._convert_to_csv(analytics)
             )
             
             print(f"[ANALYTICS] Triggered for metadata {metadata_id} (project: {metadata.get('project_name')})", file=sys.stderr)

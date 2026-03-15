@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    if (!response.status === 200) {
+    if (response.status !== 200) {
       const error = await response.text();
       console.error('Backend error:', error);
       return NextResponse.json(

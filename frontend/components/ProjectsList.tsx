@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -166,21 +165,22 @@ export default function ProjectsList({
         },
       });
 
-      if (!response.status || response.status >= 400) {
-        const errorData = response.data;
+      if (response.status !== 200) {
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch(e) {}
         throw new Error(
           errorData.message || `Failed to cancel run: ${response.statusText}`,
         );
       }
 
-      const data = response.data;
+      const data = await response.json();
       console.log("Run cancelled successfully:", data);
 
       // Trigger a refresh of projects to update status
-      if (onRunProject) {
-        // Force a refresh by calling the parent's refresh mechanism
-        window.dispatchEvent(new CustomEvent("projectStatusUpdated"));
-      }
+      // Force a refresh by calling the parent's refresh mechanism
+      window.dispatchEvent(new CustomEvent("projectStatusUpdated"));
     } catch (error) {
       console.error("Error cancelling run:", error);
       alert(

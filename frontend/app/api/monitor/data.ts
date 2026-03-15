@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       headers: getApiHeaders(),
     });
 
-    if (!response.status === 200) {
+    if (response.status !== 200) {
       const error = await response.text();
       console.error('Backend error:', error);
       return NextResponse.json(

@@ -1,5 +1,4 @@
 "use client";
-import apiClient from "@/lib/apiClient";
 import { getApiHeaders } from "@/lib/apiBase";
 import { useState, useEffect } from "react";
 import { Activity, TrendingUp, Download, Zap, RefreshCw } from "lucide-react";
@@ -80,9 +79,9 @@ export default function AllProjectsAnalyticsModal({
   const fetchRunningProjects = async () => {
     try {
       // Request paginated projects (first 50 items for performance)
-      const response = await apiClient.get("/api/projects?page=1&limit=50");
+      const response = await fetch("/api/projects?page=1&limit=50", { headers: getApiHeaders() });
       if (response.status === 200) {
-        const data = response.data;
+        const data = await response.json();
         const running = (data.projects || []).filter(
           (p: ProjectData) => p.last_run?.status === "running",
         );
@@ -104,7 +103,7 @@ export default function AllProjectsAnalyticsModal({
               { headers: getApiHeaders() },
             );
             if (response.status === 200) {
-              const analytics = response.data;
+              const analytics = await response.json();
               return {
                 ...project,
                 analytics,
